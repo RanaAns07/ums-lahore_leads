@@ -8,6 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, PhoneCall, XCircle, LayoutGrid, List } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type InquiryStatus = "NEW" | "CONTACTED" | "CONVERTED" | "REJECTED";
 
@@ -25,6 +36,9 @@ interface Inquiry {
 
 export default function InquiriesPage() {
     const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+    const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+    const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
+    const [batchId, setBatchId] = useState("FALL-2026");
     const queryClient = useQueryClient();
     const { toast } = useToast();
 
@@ -49,6 +63,26 @@ export default function InquiriesPage() {
         }
     });
 
+    const convertInquiry = useMutation({
+        mutationFn: async ({ id, program_id, batch_id }: { id: string; program_id: string; batch_id: string }) => {
+            await api.post(`/admissions/inquiries/${id}/convert`, { program_id, batch_id });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["inquiries"] });
+            toast({ title: "Converted", description: "Inquiry converted to application successfully." });
+            setConvertDialogOpen(false);
+            setSelectedInquiry(null);
+        },
+        onError: () => {
+            toast({ title: "Conversion Failed", description: "Could not convert inquiry.", variant: "destructive" });
+        }
+    });
+
+    const handleConvertClick = (inq: Inquiry) => {
+        setSelectedInquiry(inq);
+        setConvertDialogOpen(true);
+    };
+
     const getStatusIcon = (status: InquiryStatus) => {
         switch (status) {
             case "NEW": return <Clock className="w-4 h-4 text-blue-500" />;
@@ -67,7 +101,26 @@ export default function InquiriesPage() {
         }
     };
 
-    if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading inquiries...</div>;
+    if (isLoading) return (
+        <div className="space-y-6 h-full flex flex-col">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-2xl font-bold tracking-tight text-primary">Inquiry Management</h3>
+                    <p className="text-muted-foreground">Process and convert prospective student inquiries.</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
+                {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="bg-slate-50 border rounded-xl p-4 min-w-[280px] h-full min-h-[500px] animate-pulse">
+                        <div className="h-6 w-1/3 bg-slate-200 rounded mb-4"></div>
+                        <div className="space-y-3">
+                            {[1, 2, 3].map(j => <div key={j} className="h-24 bg-white rounded-lg border shadow-sm"></div>)}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 
     const grouped = {
         NEW: inquiries.filter(i => i.status === "NEW"),
@@ -131,7 +184,7 @@ export default function InquiriesPage() {
                                                 )}
                                                 {status === "CONTACTED" && (
                                                     <>
-                                                        <Button size="sm" className="flex-1 text-xs h-8 bg-green-600 hover:bg-green-700" onClick={() => updateStatus.mutate({ id: inq.id, status: "CONVERTED" })}>Convert</Button>
+                                                        <Button size="sm" className="flex-1 text-xs h-8 bg-gold hover:bg-yellow-500 text-navy" onClick={() => handleConvertClick(inq)}>Convert</Button>
                                                         <Button size="sm" variant="outline" className="flex-1 text-xs h-8 text-red-600 hover:bg-red-50" onClick={() => updateStatus.mutate({ id: inq.id, status: "REJECTED" })}>Reject</Button>
                                                     </>
                                                 )}
@@ -192,7 +245,7 @@ export default function InquiriesPage() {
                                                     <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: inq.id, status: "CONTACTED" })}>Contacted</Button>
                                                 )}
                                                 {inq.status === "CONTACTED" && (
-                                                    <Button size="sm" onClick={() => updateStatus.mutate({ id: inq.id, status: "CONVERTED" })}>Convert</Button>
+                                                    <Button size="sm" className="bg-gold hover:bg-yellow-500 text-navy" onClick={() => handleConvertClick(inq)}>Convert</Button>
                                                 )}
                                             </td>
                                         </tr>
@@ -203,6 +256,45 @@ export default function InquiriesPage() {
                     </div>
                 </Card>
             )}
+
+            <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Convert Inquiry to Application</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to convert {selectedInquiry?.first_name} {selectedInquiry?.last_name} into an active applicant?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="batch_id" className="text-right">
+                                Batch ID
+                            </Label>
+                            <Input
+                                id="batch_id"
+                                value={batchId}
+                                onChange={(e) => setBatchId(e.target.value)}
+                                className="col-span-3"
+                                placeholder="e.g. FALL-2026"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>Cancel</Button>
+                        <Button
+                            className="bg-navy text-white hover:bg-navy/90"
+                            onClick={() => {
+                                if (selectedInquiry) {
+                                    convertInquiry.mutate({
+                                        id: selectedInquiry.id,
+                                        program_id: selectedInquiry.program_id || 'default-program-id',
+                                        batch_id: batchId
+                                    });
+                                }
+                            }}>Confirm Conversion</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

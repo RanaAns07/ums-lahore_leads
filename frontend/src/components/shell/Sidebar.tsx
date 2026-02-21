@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users, BookOpen, Calculator, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { useAuth } from "@/hooks/use-auth";
 
 interface SidebarProps {
     className?: string;
@@ -38,38 +39,47 @@ const navItems = [
     },
 ];
 
+const NAVY = "#002147";
+const GOLD = "#FFD700";
+
 export function Sidebar({ className }: SidebarProps) {
     const pathname = usePathname();
+    const { hasPermission, isLoading } = useAuth();
 
-    // In a real app we'd cross-check session.user.roles or a permissions array here
-    // For the MVP, we show all links.
+    if (isLoading) {
+        return <div className={cn("pb-12 min-h-screen border-r bg-[#002147] w-64", className)} />;
+    }
 
     return (
-        <div className={cn("pb-12 min-h-screen flex flex-col border-r bg-primary text-primary-foreground", className)}>
+        <div className={cn("pb-12 min-h-screen flex flex-col border-r text-white", className)} style={{ backgroundColor: NAVY }}>
             <div className="space-y-4 py-4 flex-1">
                 <div className="px-3 py-2">
-                    <h2 className="mb-2 px-4 text-lg font-bold tracking-tight text-white">
+                    <h2 className="mb-2 px-4 text-lg font-bold tracking-tight text-white mb-6">
                         UMS Leads
                     </h2>
                     <div className="space-y-1">
-                        {navItems.map((item) => (
-                            <Button
-                                key={item.href}
-                                variant={pathname.startsWith(item.href) ? "secondary" : "ghost"}
-                                className={cn(
-                                    "w-full justify-start",
-                                    pathname.startsWith(item.href)
-                                        ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                        : "text-slate-300 hover:text-white hover:bg-primary/80"
-                                )}
-                                asChild
-                            >
-                                <Link href={item.href}>
-                                    <item.icon className="mr-2 h-4 w-4" />
-                                    {item.title}
-                                </Link>
-                            </Button>
-                        ))}
+                        {navItems.filter(item => hasPermission(item.requiredPermission)).map((item) => {
+                            const isActive = pathname.startsWith(item.href);
+                            return (
+                                <Button
+                                    key={item.href}
+                                    variant="ghost"
+                                    className={cn(
+                                        "w-full justify-start font-medium transition-colors",
+                                        isActive
+                                            ? "text-[#002147] hover:text-[#002147] hover:bg-[#FFD700]"
+                                            : "text-slate-300 hover:text-white hover:bg-white/10"
+                                    )}
+                                    style={isActive ? { backgroundColor: GOLD } : {}}
+                                    asChild
+                                >
+                                    <Link href={item.href}>
+                                        <item.icon className="mr-2 h-4 w-4" />
+                                        {item.title}
+                                    </Link>
+                                </Button>
+                            )
+                        })}
                     </div>
                 </div>
             </div>
