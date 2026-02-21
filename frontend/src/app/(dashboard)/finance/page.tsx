@@ -1,29 +1,28 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { DollarSign, ArrowUpRight, ArrowDownRight, TrendingUp } from "lucide-react";
+import { DollarSign, ArrowDownRight, TrendingUp } from "lucide-react";
 
-const paymentSchema = z.object({
-    invoiceId: z.string().min(1, "Invoice is required"),
-    amount_paid: z.coerce.number().min(1, "Amount must be greater than 0"),
-    payment_method: z.string().min(1, "Payment method is required"),
-    transaction_reference: z.string().optional(),
-    notes: z.string().optional(),
+// Expense Schema mapping to expected UniversityExpense
+const expenseSchema = z.object({
+    fund_id: z.string().min(1, "Fund is required"),
+    amount: z.coerce.number().min(1, "Amount must be greater than 0"),
+    category: z.string().min(1, "Category is required"),
+    description: z.string().min(1, "Description is required"),
+    reference_id: z.string().optional(),
 });
 
-type PaymentFormValues = z.infer<typeof paymentSchema>;
+type ExpenseFormValues = z.infer<typeof expenseSchema>;
 
 interface FundBalance {
     id: string;
@@ -39,31 +38,20 @@ interface LedgerEntry {
     created_at: string;
 }
 
-interface Invoice {
-    id: string;
-    status: string;
-    total_amount: number;
-    amount_paid: number;
-    enrollment: {
-        student_profile: {
-            first_name: string;
-            last_name: string;
-        };
-    };
-}
-
 export default function FinancePage() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
-    const form = useForm<PaymentFormValues>({
-        resolver: zodResolver(paymentSchema),
+
+    const form = useForm<ExpenseFormValues>({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        resolver: zodResolver(expenseSchema) as any,
         defaultValues: {
-            invoiceId: "",
-            amount_paid: 0,
-            payment_method: "BANK_TRANSFER",
-            transaction_reference: "",
-            notes: "",
+            fund_id: "",
+            amount: 0,
+            category: "UTILITIES",
+            description: "",
+            reference_id: "",
         },
     });
 
@@ -84,46 +72,38 @@ export default function FinancePage() {
         },
     });
 
-    const { data: invoices = [], isLoading: invoicesLoading } = useQuery<Invoice[]>({
-        queryKey: ["invoices"],
-        queryFn: async () => {
-            const res = await api.get("/finance/billing/invoices?status=PENDING"); // Only pending
-            // If endpoint doesn't support status query, we can filter in the frontend MVP
-            return res.data.filter ? res.data.filter((inv: Invoice) => inv.status !== 'PAID') : res.data;
-        },
-    });
-
     // Mutation
-    const recordPayment = useMutation({
-        mutationFn: async (data: PaymentFormValues) => {
-            await api.post(`/finance/payments/invoices/${data.invoiceId}/pay`, {
-                amount_paid: data.amount_paid,
-                payment_method: data.payment_method,
-                transaction_reference: data.transaction_reference,
-                notes: data.notes,
+    const recordExpense = useMutation({
+        mutationFn: async (data: ExpenseFormValues) => {
+            // Endpoint mapping to standard or future university expenses route
+            await api.post(`/finance/expenses`, {
+                fund_id: data.fund_id,
+                amount: data.amount,
+                category: data.category,
+                description: data.description,
+                reference_id: data.reference_id,
             });
         },
         onSuccess: () => {
-            toast({ title: "Payment Recorded", description: "Successfully applied payment to invoice." });
+            toast({ title: "Expense Recorded", description: "Successfully logged the university expense." });
             queryClient.invalidateQueries({ queryKey: ["fund-balances"] });
             queryClient.invalidateQueries({ queryKey: ["general-ledger"] });
-            queryClient.invalidateQueries({ queryKey: ["invoices"] });
             form.reset();
         },
         onError: () => {
-            toast({ title: "Payment Failed", description: "There was an error recording this payment.", variant: "destructive" });
+            toast({ title: "Failed", description: "Error recording expense.", variant: "destructive" });
         },
     });
 
-    const onSubmit = (data: PaymentFormValues) => {
-        recordPayment.mutate(data);
+    const onSubmit = (data: ExpenseFormValues) => {
+        recordExpense.mutate(data);
     };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
     };
 
-    if (fundsLoading || ledgerLoading || invoicesLoading) {
+    if (fundsLoading || ledgerLoading) {
         return (
             <div className="space-y-6">
                 <div className="animate-pulse space-y-4">
@@ -142,7 +122,7 @@ export default function FinancePage() {
         <div className="space-y-8 pb-8">
             <div>
                 <h3 className="text-2xl font-bold tracking-tight text-[#002147]">Finance Ledger</h3>
-                <p className="text-muted-foreground">View fund balances, invoices, and record payments.</p>
+                <p className="text-muted-foreground">View fund balances, general ledger, and record expenses.</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -191,21 +171,22 @@ export default function FinancePage() {
                                             </td>
                                         </tr>
                                     ) : (
-                                        ledger.map((entry) => (
+
+                                        ledger.slice(0, 50).map((entry) => (
                                             <tr key={entry.id} className="border-b last:border-0 hover:bg-slate-50/50">
                                                 <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                                                     {new Date(entry.created_at).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${entry.amount >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${entry.amount >= 0 || entry.transaction_type === 'INFLOW' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                                                         }`}>
-                                                        {entry.amount >= 0 ? <TrendingUp className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                                        {entry.amount >= 0 || entry.transaction_type === 'INFLOW' ? <TrendingUp className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                                                         {entry.transaction_type}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-700">{entry.description}</td>
-                                                <td className={`px-4 py-3 text-right font-medium ${entry.amount >= 0 ? 'text-green-600' : 'text-slate-900'}`}>
-                                                    {entry.amount >= 0 ? '+' : ''}{formatCurrency(entry.amount)}
+                                                <td className={`px-4 py-3 text-right font-medium ${entry.amount >= 0 || entry.transaction_type === 'INFLOW' ? 'text-green-600' : 'text-red-700'}`}>
+                                                    {entry.amount >= 0 || entry.transaction_type === 'INFLOW' ? '+' : '-'}{formatCurrency(Math.abs(entry.amount))}
                                                 </td>
                                             </tr>
                                         ))
@@ -218,28 +199,29 @@ export default function FinancePage() {
 
                 <Card className="md:col-span-3 shadow-sm border-slate-200 bg-slate-50/30">
                     <CardHeader>
-                        <CardTitle>Record Payment</CardTitle>
-                        <CardDescription>Process an incoming payment for an invoice.</CardDescription>
+                        <CardTitle>Record Expense</CardTitle>
+                        <CardDescription>Log a university expense outflow.</CardDescription>
                     </CardHeader>
                     <CardContent>
+
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                                 <FormField
                                     control={form.control}
-                                    name="invoiceId"
+                                    name="fund_id"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Invoice</FormLabel>
+                                            <FormLabel>Fund Profile</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger className="bg-white">
-                                                        <SelectValue placeholder="Select a pending invoice" />
+                                                        <SelectValue placeholder="Select funding source" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {invoices.map((inv) => (
-                                                        <SelectItem key={inv.id} value={inv.id}>
-                                                            {inv.id.substring(0, 8).toUpperCase()} - {inv.enrollment?.student_profile?.first_name || 'Student'} ({formatCurrency(inv.total_amount - inv.amount_paid)} due)
+                                                    {fundBalances.map((fund) => (
+                                                        <SelectItem key={fund.id} value={fund.id}>
+                                                            {fund.name} (Bal: {formatCurrency(fund.balance)})
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -252,10 +234,10 @@ export default function FinancePage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
-                                        name="amount_paid"
+                                        name="amount"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Amount Paid</FormLabel>
+                                                <FormLabel>Expense Amount</FormLabel>
                                                 <FormControl>
                                                     <Input type="number" step="0.01" className="bg-white" {...field} />
                                                 </FormControl>
@@ -266,20 +248,22 @@ export default function FinancePage() {
 
                                     <FormField
                                         control={form.control}
-                                        name="payment_method"
+                                        name="category"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Method</FormLabel>
+                                                <FormLabel>Category</FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                     <FormControl>
                                                         <SelectTrigger className="bg-white">
-                                                            <SelectValue placeholder="Select method" />
+                                                            <SelectValue placeholder="Select category" />
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                                                        <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
-                                                        <SelectItem value="CASH">Cash</SelectItem>
+                                                        <SelectItem value="SALARY">Salary</SelectItem>
+                                                        <SelectItem value="UTILITIES">Utilities</SelectItem>
+                                                        <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                                                        <SelectItem value="SUPPLIES">Supplies</SelectItem>
+                                                        <SelectItem value="OTHER">Other</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -290,12 +274,12 @@ export default function FinancePage() {
 
                                 <FormField
                                     control={form.control}
-                                    name="transaction_reference"
+                                    name="description"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Reference (Optional)</FormLabel>
+                                            <FormLabel>Description</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Receipt or Tx ID" className="bg-white" {...field} />
+                                                <Input placeholder="E.g. Monthly Electricity Bill" className="bg-white" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -304,20 +288,20 @@ export default function FinancePage() {
 
                                 <FormField
                                     control={form.control}
-                                    name="notes"
+                                    name="reference_id"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Notes (Optional)</FormLabel>
+                                            <FormLabel>Reference ID (Optional)</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Extra details..." className="bg-white" {...field} />
+                                                <Input placeholder="External Doc ID" className="bg-white" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
 
-                                <Button type="submit" className="w-full bg-[#002147] hover:bg-[#002147]/90 text-white" disabled={recordPayment.isPending}>
-                                    {recordPayment.isPending ? "Recording..." : "Record Payment"}
+                                <Button type="submit" className="w-full bg-[var(--color-gold)] hover:bg-[#e6c200] text-[var(--color-navy)] font-semibold" disabled={recordExpense.isPending}>
+                                    {recordExpense.isPending ? "Recording..." : "Record Expense"}
                                 </Button>
                             </form>
                         </Form>
