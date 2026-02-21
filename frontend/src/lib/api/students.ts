@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import type { Person, Enrollment } from '@/types';
+import type { Person, Enrollment, CourseRegistration } from '@/types';
 
 // ============================================
 // STUDENTS API SERVICE LAYER
@@ -25,5 +25,13 @@ export const studentsApi = {
         api.get<Enrollment[]>('/enrollment', { params }).then((r) => r.data),
 
     getEnrollment: (id: string) =>
-        api.get<Enrollment>(`/enrollment/${id}`, { params: undefined }).then((r) => r.data),
+        api.get<Enrollment>(`/enrollment/${id}`).then((r) => r.data),
+
+    // ---- Course Registration ----
+
+    registerForCourse: (enrollmentId: string, courseOfferingId: string) =>
+        api.post<CourseRegistration>(`/enrollment/${enrollmentId}/courses`, { course_offering_id: courseOfferingId }).then(r => r.data),
+
+    dropCourse: (enrollmentId: string, courseOfferingId: string) =>
+        api.delete(`/enrollment/${enrollmentId}/courses/${courseOfferingId}`).then(r => r.data),
 };

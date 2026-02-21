@@ -13,8 +13,10 @@ export type DocumentStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
 export type InvoiceStatus = 'UNPAID' | 'PARTIAL' | 'PAID' | 'VOID';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
 export type EnrollmentStatus = 'PROVISIONED' | 'ACTIVE' | 'ON_HOLD' | 'WITHDRAWN' | 'GRADUATED';
+export type RegistrationStatus = 'REGISTERED' | 'DROPPED' | 'COMPLETED' | 'FAILED';
 export type TransactionType = 'INFLOW' | 'OUTFLOW';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+export type FeeType = 'TUITION' | 'LAB' | 'ADMISSION' | 'LIBRARY' | 'SPORTS' | 'EXAMINATION' | 'HOSTEL' | 'TRANSPORTATION' | 'MISCELLANEOUS';
 
 // ---- Identity Models ----
 
@@ -53,13 +55,61 @@ export interface RoleAssignment {
 
 // ---- Academic Models ----
 
+export interface Department {
+    id: string;
+    name: string;
+    code: string;
+    head_of_dept_id?: string;
+    created_at: string;
+    updated_at: string;
+    head_of_dept?: Person;
+    programs?: Program[];
+    courses?: Course[];
+}
+
 export interface Program {
     id: string;
     name: string;
     code: string;
     duration_semesters: number;
     department_id: string;
-    department?: { id: string; name: string; code: string };
+    department?: Department;
+}
+
+export interface Course {
+    id: string;
+    name: string;
+    code: string;
+    credit_hours: number;
+    department_id: string;
+    created_at: string;
+    updated_at: string;
+    department?: Department;
+    offerings?: CourseOffering[];
+    prerequisites?: CoursePrerequisite[];
+    required_for?: CoursePrerequisite[];
+}
+
+export interface CoursePrerequisite {
+    course_id: string;
+    prerequisite_course_id: string;
+    created_at: string;
+    course?: Course;
+    prerequisite_course?: Course;
+}
+
+export interface CourseOffering {
+    id: string;
+    course_id: string;
+    semester_id: string;
+    instructor_id?: string;
+    section_code: string;
+    capacity: number;
+    created_at: string;
+    updated_at: string;
+    course?: Course;
+    semester?: Semester;
+    instructor?: Person;
 }
 
 export interface Semester {
@@ -138,6 +188,18 @@ export interface StudentProfile {
     enrollments?: Enrollment[];
 }
 
+export interface CourseRegistration {
+    id: string;
+    enrollment_id: string;
+    course_offering_id: string;
+    status: RegistrationStatus;
+    grade?: string;
+    created_at: string;
+    updated_at: string;
+    enrollment?: Enrollment;
+    course_offering?: CourseOffering;
+}
+
 export interface Enrollment {
     id: string;
     student_profile_id: string;
@@ -153,6 +215,19 @@ export interface Enrollment {
 }
 
 // ---- Finance Models ----
+
+export interface FeeStructure {
+    id: string;
+    program_id: string;
+    semester_id: string;
+    fee_type: FeeType;
+    amount: number;
+    description?: string;
+    created_at: string;
+    updated_at: string;
+    program?: Program;
+    semester?: Semester;
+}
 
 export interface Invoice {
     id: string;

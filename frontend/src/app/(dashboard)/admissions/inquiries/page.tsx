@@ -143,7 +143,23 @@ export default function InquiriesPage() {
             {viewMode === "kanban" ? (
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1 items-start overflow-x-auto pb-4">
                     {INQUIRY_STATUSES.map((status) => (
-                        <div key={status} className="bg-slate-50/80 rounded-xl p-4 min-w-[240px] border border-slate-200 shadow-sm flex flex-col max-h-[calc(100vh-360px)]">
+                        <div key={status}
+                            className="bg-slate-50/80 rounded-xl p-4 min-w-[240px] border border-slate-200 shadow-sm flex flex-col max-h-[calc(100vh-360px)]"
+                            onDragOver={(e) => {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = "move";
+                            }}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                const id = e.dataTransfer.getData("text/plain");
+                                if (id) {
+                                    const inquiry = inquiries.find(i => i.id === id);
+                                    if (inquiry && inquiry.status !== status) {
+                                        updateStatus.mutate({ id, status });
+                                    }
+                                }
+                            }}
+                        >
                             <div className="flex items-center justify-between mb-4">
                                 <StatusBadge status={status} />
                                 <span className="text-xs font-medium text-slate-500 bg-white rounded-full px-2 py-0.5 border">
@@ -152,7 +168,15 @@ export default function InquiriesPage() {
                             </div>
                             <div className="space-y-3 overflow-y-auto pr-1">
                                 {(grouped[status] || []).map((inq) => (
-                                    <Card key={inq.id} className="shadow-sm border-slate-200 hover:shadow-md transition-shadow p-4">
+                                    <Card
+                                        key={inq.id}
+                                        className="shadow-sm border-slate-200 hover:shadow-md transition-shadow p-4 cursor-grab active:cursor-grabbing"
+                                        draggable
+                                        onDragStart={(e) => {
+                                            e.dataTransfer.setData("text/plain", inq.id);
+                                            e.dataTransfer.effectAllowed = "move";
+                                        }}
+                                    >
                                         <div className="flex justify-between items-start mb-2">
                                             <h4 className="text-sm font-semibold text-slate-900">{inq.first_name} {inq.last_name}</h4>
                                         </div>

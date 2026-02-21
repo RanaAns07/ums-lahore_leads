@@ -54,6 +54,7 @@ export default function StudentsPage() {
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b">
                             <tr>
+                                <th className="px-6 py-4 font-semibold">Student ID</th>
                                 <th className="px-6 py-4 font-semibold">Name</th>
                                 <th className="px-6 py-4 font-semibold">Date of Birth</th>
                                 <th className="px-6 py-4 font-semibold">Gender</th>
@@ -75,6 +76,11 @@ export default function StudentsPage() {
                             ) : (
                                 filtered.map((person) => (
                                     <tr key={person.id} className="bg-white border-b hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <span className="font-mono text-[#002147] font-semibold bg-slate-100 px-2 py-1 rounded">
+                                                {person.student_profile?.student_id_number || "N/A"}
+                                            </span>
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="rounded-full bg-[#002147]/10 p-2">

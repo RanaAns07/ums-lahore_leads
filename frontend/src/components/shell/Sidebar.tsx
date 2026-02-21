@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, BookOpen, Calculator, LogOut, GraduationCap, FileText } from "lucide-react";
+import { LayoutDashboard, Users, BookOpen, Calculator, LogOut, GraduationCap, FileText, Wallet } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -32,10 +32,22 @@ const navItems = [
         requiredPermission: "person.read",
     },
     {
+        title: "Course Registration",
+        href: "/students/course-registration",
+        icon: BookOpen,
+        requiredPermission: "academic.write",
+    },
+    {
         title: "Finance",
         href: "/finance",
         icon: Calculator,
         requiredPermission: "finance.read",
+    },
+    {
+        title: "Fee Structures",
+        href: "/finance/fee-structures",
+        icon: Wallet,
+        requiredPermission: "finance.write",
     },
     {
         title: "Academic Catalog",

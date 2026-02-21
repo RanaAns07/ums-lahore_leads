@@ -12,6 +12,12 @@ import type {
 // ============================================
 
 export const financeApi = {
+    // ---- Fee Structures ----
+    getFeeStructures: (params?: { program_id?: string; semester_id?: string }) =>
+        api.get<any[]>('/finance/billing/fee-structures', { params }).then((r) => r.data),
+
+    createFeeStructure: (data: any) =>
+        api.post<any>('/finance/billing/fee-structures', data).then((r) => r.data),
     // ---- Billing / Invoices ----
 
     getInvoices: (params?: { status?: string }) =>

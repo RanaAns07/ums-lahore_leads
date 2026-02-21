@@ -8,6 +8,29 @@ import { financeApi } from "@/lib/api/finance";
 // FINANCE QUERY HOOKS
 // ============================================
 
+export function useFeeStructures(params?: { program_id?: string; semester_id?: string }) {
+    return useQuery({
+        queryKey: ["fee-structures", params],
+        queryFn: () => financeApi.getFeeStructures(params),
+    });
+}
+
+export function useCreateFeeStructure() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: (data: any) => financeApi.createFeeStructure(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["fee-structures"] });
+            toast({ title: "Success", description: "Fee structure created successfully." });
+        },
+        onError: (err: any) => {
+            toast({ title: "Error", description: err?.response?.data?.message || "Failed to create fee structure.", variant: "destructive" });
+        },
+    });
+}
+
 export function useInvoices(params?: { status?: string }) {
     return useQuery({
         queryKey: ["invoices", params],

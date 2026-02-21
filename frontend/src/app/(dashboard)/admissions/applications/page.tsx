@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useApplications, useMoveToReview, useRejectApplication } from "@/hooks/use-admissions";
+import { ApplicationReviewDrawer } from "@/components/admissions/ApplicationReviewDrawer";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -20,6 +21,8 @@ const APP_STATUSES: ApplicationStatus[] = ["DRAFT", "SUBMITTED", "UNDER_REVIEW",
 export default function ApplicationsPage() {
     const [statusFilter, setStatusFilter] = useState<string>("ALL");
     const [searchQuery, setSearchQuery] = useState("");
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
 
     const { data: applications = [], isLoading } = useApplications(
         statusFilter !== "ALL" ? { status: statusFilter as ApplicationStatus } : undefined
@@ -131,10 +134,15 @@ export default function ApplicationsPage() {
                                             {app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : "—"}
                                         </td>
                                         <td className="px-6 py-4 text-right space-x-2">
-                                            <Button size="sm" className="bg-[#002147] hover:bg-[#002147]/90 text-white" asChild>
-                                                <Link href={`/admissions/applications/${app.id}`}>
-                                                    <Eye className="w-3.5 h-3.5 mr-1" /> Review
-                                                </Link>
+                                            <Button
+                                                size="sm"
+                                                className="bg-[#002147] hover:bg-[#002147]/90 text-white"
+                                                onClick={() => {
+                                                    setSelectedAppId(app.id);
+                                                    setDrawerOpen(true);
+                                                }}
+                                            >
+                                                <Eye className="w-3.5 h-3.5 mr-1" /> Review
                                             </Button>
                                             <PermissionGate permission="admissions.write">
                                                 {app.status === "SUBMITTED" && (
@@ -167,6 +175,12 @@ export default function ApplicationsPage() {
                     </table>
                 </div>
             </Card>
+
+            <ApplicationReviewDrawer
+                applicationId={selectedAppId}
+                open={drawerOpen}
+                onOpenChange={setDrawerOpen}
+            />
         </div>
     );
 }
